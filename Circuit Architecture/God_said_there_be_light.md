@@ -161,37 +161,3 @@ Nano A5 ─────────→ PCA SCL
 ✔ GitHub‑ready
 
 
-
-0 160
-1 460
-2 250
-
-
-6 150
-5 80   
-4 180
-
-
-
-
-
-#define hipLOffset 250
-#define kneeLOffset 460
-#define ankleLOffset 160
-#define hipROffset 150
-#define kneeROffset 80
-#define ankleROffset 250
-
-#define l1 6.5
-#define l2 7
-
-#define stepClearance 1
-#define stepHeight 15
-
-
-#define HIP_L_CH    2
-#define HIP_R_CH    6
-#define KNEE_L_CH   1
-#define KNEE_R_CH   5
-#define ANKLE_L_CH  2
-#define ANKLE_R_CH  4
