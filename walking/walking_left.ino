@@ -167,23 +167,67 @@ void pos(float x, float z, char leg) {
   updateServoPos(hipDeg, kneeDeg, ankleDeg, leg);
 }
 
+// ===================== Easing Function =====================
+float easeInOutCubic(float t) {
+  // Smooth acceleration/deceleration curve
+  // t should be 0.0 to 1.0
+  return t < 0.5f 
+    ? 4.0f * t * t * t 
+    : 1.0f - pow(-2.0f * t + 2.0f, 3.0f) / 2.0f;
+}
+
 // ===================== Gait =====================
 void takeStep(float stepLength, int stepVelocity) {
-  for (float i = stepLength; i >= -stepLength; i -= 0.25f) {
-    pos(-i, stepHeight,                 'r');
-    pos(+i, stepHeight - stepClearance, 'l');
+  // Phase 1: Right foot forward, left foot support
+  unsigned long startTime = millis();
+  float phaseDuration = abs(2.0f * stepLength / 0.1f) * stepVelocity; // Calculate total phase time
+  
+  while (millis() - startTime < phaseDuration) {
+    float t = (millis() - startTime) / phaseDuration; // 0 to 1
+    float eased = easeInOutCubic(t);
+    
+    // Horizontal position (smooth acceleration)
+    float x = stepLength - (2.0f * stepLength * eased);
+    
+    // Vertical arc for swing foot (right)
+    float liftR = sin(t * PI) * stepClearance * 1.2f; // Arc motion
+    float zR = stepHeight + liftR;
+    
+    // Support foot (left) stays down with slight weight shift
+    float zL = stepHeight - stepClearance + (sin(t * PI) * 0.3f);
+    
+    pos(-x, zR, 'r');
+    pos(+x, zL, 'l');
     printDebug();
-    delay(stepVelocity);
+    delay(5); // Small fixed delay for smooth updates
   }
-  delay(150);
-
-  for (float i = stepLength; i >= -stepLength; i -= 0.25f) {
-    pos(+i, stepHeight - stepClearance, 'r');
-    pos(-i, stepHeight,                 'l');
+  
+  // Weight transfer pause (reduced from 150ms to 50ms)
+  delay(50);
+  
+  // Phase 2: Left foot forward, right foot support
+  startTime = millis();
+  
+  while (millis() - startTime < phaseDuration) {
+    float t = (millis() - startTime) / phaseDuration;
+    float eased = easeInOutCubic(t);
+    
+    float x = stepLength - (2.0f * stepLength * eased);
+    
+    // Vertical arc for swing foot (left)
+    float liftL = sin(t * PI) * stepClearance * 1.2f;
+    float zL = stepHeight + liftL;
+    
+    // Support foot (right) stays down with slight weight shift
+    float zR = stepHeight - stepClearance + (sin(t * PI) * 0.3f);
+    
+    pos(+x, zR, 'r');
+    pos(-x, zL, 'l');
     printDebug();
-    delay(stepVelocity);
+    delay(5);
   }
-  delay(150);
+  
+  delay(50);
 }
 
 void initialize() {
@@ -237,5 +281,5 @@ void setup() {
 
 // ===================== Loop =====================
 void loop() {
-  takeStep(2.5f, 30);
+  takeStep(2.5f, 20); // Reduced from 30ms to 20ms for smoother motion
 }
