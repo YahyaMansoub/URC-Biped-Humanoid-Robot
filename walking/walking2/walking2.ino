@@ -11,7 +11,7 @@ const float Z_STAND = 10.7f;
 #define l2 7.0f
 
 #define stepHeight     10.7f
-#define stepClearance  2.2f   // was 2.5f (slightly lower = less yaw / less “kick”)
+#define stepClearance  2.5f
 
 // ===================== Channels (PCA9685) =====================
 #define ANKLE_L_CH 0
@@ -37,22 +37,10 @@ const float Z_STAND = 10.7f;
 #define ANKLE_R_MIN 120
 #define ANKLE_R_MAX 260
 
-// ===================== TUNE THESE =====================
+// ===================== TUNE THESE (counts per degree) =====================
+#define HIP_CPD   1.4f
 #define KNEE_CPD  2.1f
-#define ANKLE_CPD 1.4f
-
-// Hip power per side (yaw balance)
-#define HIP_CPD_L 1.50f
-#define HIP_CPD_R 1.30f
-
-// --- NEW: stance vs swing balance (fix “right stronger than left”) ---
-// Phase 1: R is STANCE, L is SWING
-// Phase 2: L is STANCE, R is SWING
-// If it still turns LEFT: decrease STANCE_R_SCALE OR increase STANCE_L_SCALE
-#define STANCE_R_SCALE 0.90f   // weaken right push (0.85–1.00)
-#define STANCE_L_SCALE 1.12f   // strengthen left push (1.00–1.25)
-#define SWING_R_SCALE  1.00f
-#define SWING_L_SCALE  0.95f   // reduce swing overshoot (0.90–1.00)
+#define ANKLE_CPD 1.4f   // <- reduced (was too aggressive)
 
 // ===================== Offsets computed at boot =====================
 int HIP_L_OFFC, KNEE_L_OFFC, ANKLE_L_OFFC;
@@ -121,10 +109,11 @@ void updateServoPos(float hipDeg, float kneeDeg, float ankleDeg, char leg) {
   if (leg == 'l') {
     lastHipL = hipDeg; lastKneeL = kneeDeg; lastAnkleL = ankleDeg;
 
-    lastHL = (int)round(HIP_L_OFFC   - HIP_CPD_L * hipDeg);
+    lastHL = (int)round(HIP_L_OFFC   - HIP_CPD   * hipDeg);
     lastKL = (int)round(KNEE_L_OFFC  - KNEE_CPD  * kneeDeg);
     lastAL = (int)round(ANKLE_L_OFFC - ANKLE_CPD * ankleDeg);
 
+    // clamp ankles to stop twisting/over-rotation
     lastAL = constrain(lastAL, ANKLE_L_MIN, ANKLE_L_MAX);
 
     setC(HIP_L_CH,   lastHL);
@@ -133,10 +122,11 @@ void updateServoPos(float hipDeg, float kneeDeg, float ankleDeg, char leg) {
   } else {
     lastHipR = hipDeg; lastKneeR = kneeDeg; lastAnkleR = ankleDeg;
 
-    lastHR = (int)round(HIP_R_OFFC   + HIP_CPD_R * hipDeg);
+    lastHR = (int)round(HIP_R_OFFC   + HIP_CPD   * hipDeg);
     lastKR = (int)round(KNEE_R_OFFC  + KNEE_CPD  * kneeDeg);
     lastAR = (int)round(ANKLE_R_OFFC + ANKLE_CPD * ankleDeg);
 
+    // clamp ankles to stop twisting/over-rotation
     lastAR = constrain(lastAR, ANKLE_R_MIN, ANKLE_R_MAX);
 
     setC(HIP_R_CH,   lastHR);
@@ -179,27 +169,17 @@ void pos(float x, float z, char leg) {
 
 // ===================== Gait =====================
 void takeStep(float stepLength, int stepVelocity) {
-  // Phase 1: RIGHT stance, LEFT swing
   for (float i = stepLength; i >= -stepLength; i -= 0.25f) {
-    float xR = i * STANCE_R_SCALE; // stance leg push
-    float xL = i * SWING_L_SCALE;  // swing leg travel
-
-    pos(-xR, stepHeight,                 'r');
-    pos(+xL, stepHeight - stepClearance, 'l');
-
+    pos(-i, stepHeight,                 'r');
+    pos(+i, stepHeight - stepClearance, 'l');
     printDebug();
     delay(stepVelocity);
   }
   delay(150);
 
-  // Phase 2: LEFT stance, RIGHT swing
   for (float i = stepLength; i >= -stepLength; i -= 0.25f) {
-    float xR = i * SWING_R_SCALE;  // swing leg travel
-    float xL = i * STANCE_L_SCALE; // stance leg push
-
-    pos(+xR, stepHeight - stepClearance, 'r');
-    pos(-xL, stepHeight,                 'l');
-
+    pos(+i, stepHeight - stepClearance, 'r');
+    pos(-i, stepHeight,                 'l');
     printDebug();
     delay(stepVelocity);
   }
@@ -242,12 +222,12 @@ void setup() {
   float kneeDeg  = kneeRad  * (180.0f / PI);
   float ankleDeg = ankleRad * (180.0f / PI);
 
-  // Offsets so pos(0,Z_STAND) reproduces your init counts (use per-side hip gains)
-  HIP_L_OFFC   = (int)round(HIP_L0   + HIP_CPD_L * hipDeg);
+  // Offsets so pos(0,Z_STAND) reproduces your init counts
+  HIP_L_OFFC   = (int)round(HIP_L0   + HIP_CPD   * hipDeg);
   KNEE_L_OFFC  = (int)round(KNEE_L0  + KNEE_CPD  * kneeDeg);
   ANKLE_L_OFFC = (int)round(ANKLE_L0 + ANKLE_CPD * ankleDeg);
 
-  HIP_R_OFFC   = (int)round(HIP_R0   - HIP_CPD_R * hipDeg);
+  HIP_R_OFFC   = (int)round(HIP_R0   - HIP_CPD   * hipDeg);
   KNEE_R_OFFC  = (int)round(KNEE_R0  - KNEE_CPD  * kneeDeg);
   ANKLE_R_OFFC = (int)round(ANKLE_R0 - ANKLE_CPD * ankleDeg);
 

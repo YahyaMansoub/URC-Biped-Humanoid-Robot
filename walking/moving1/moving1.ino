@@ -128,6 +128,14 @@ void updateServoPos(float hipDeg, float kneeDeg, float ankleDeg, char leg) {
 
 // ===================== IK =====================
 void pos(float x, float z, char leg) {
+
+    Serial.print("pos called: leg=");
+  Serial.print(leg);
+  Serial.print(" x=");
+  Serial.print(x);
+  Serial.print(" z=");
+  Serial.println(z);
+  
   if (leg == 'l') { lastXl = x; lastZl = z; }
   else            { lastXr = x; lastZr = z; }
 
@@ -231,7 +239,6 @@ void setup() {
 
 // ===================== Loop =====================
 void loop() {
-  // Start gentle; increase stepLength slowly later
-  takeStep(2.5f, 30);
+
 }
 
